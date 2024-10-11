@@ -28,8 +28,10 @@ def standard_deviation(values, mean):
 
 def train(data, l_rate, epochs, error_func, threshold):
     theta1 = theta0 = 0
+
     mileages = data["km"]
     prices = data["price"]
+
     prices_mean = mean(prices)
     mileages_mean = mean(mileages)
     prices_std = standard_deviation(prices, prices_mean)
@@ -37,6 +39,7 @@ def train(data, l_rate, epochs, error_func, threshold):
     prices = [normalize(p, prices_mean, prices_std) for p in prices]
     mileages = [normalize(m, mileages_mean, mileages_std) for m in mileages]
     m = len(data)
+
     for _ in tqdm(range(epochs)):
         tmp0 = l_rate * (
             sum(
@@ -69,6 +72,7 @@ def train(data, l_rate, epochs, error_func, threshold):
                 for price, km in zip(data["price"], data["km"])
             ]
         )
+        # TODO use treshold
 
     theta1 = theta1 * (prices_std / mileages_std)
     theta0 = prices_mean - theta1 * mileages_mean
@@ -78,8 +82,11 @@ def train(data, l_rate, epochs, error_func, threshold):
             for price, km in zip(data["price"], data["km"])
         ]
     )
-    print(error)
+    print(error)  # TODO clean formatting
     return theta1, theta0
+
+
+# TODO better/cleaner plot
 
 
 def plot_result(data, theta1, theta0):
@@ -96,6 +103,7 @@ def plot_result(data, theta1, theta0):
 
 
 if __name__ == "__main__":
+    # TODO better description
     parser = ArgumentParser(
         prog="ft_linear_regression",
         description="Train the model on given datas.",
@@ -150,6 +158,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # TODO clean except
 
     try:
         data = pd.read_csv(args.input_file)
