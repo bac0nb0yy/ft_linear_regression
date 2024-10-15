@@ -2,6 +2,8 @@ import sys
 import json
 from argparse import ArgumentParser
 
+EXIT_FAILURE = 1
+
 
 def estimate_price(theta1, theta0, mileage):
     return theta1 * mileage + theta0
@@ -46,19 +48,19 @@ if __name__ == "__main__":
 
     except FileNotFoundError:
         print(f"Error: The file '{args.file}' was not found.", file=sys.stderr)
-        exit(1)
+        exit(EXIT_FAILURE)
     except json.JSONDecodeError:
         print(f"Error: The file '{args.file}' contains invalid JSON.", file=sys.stderr)
-        exit(1)
+        exit(EXIT_FAILURE)
     except KeyError as e:
         print(f"Error: Missing expected key in JSON data: {e}", file=sys.stderr)
-        exit(1)
+        exit(EXIT_FAILURE)
     except ValueError:
         print(
             "Error: Invalid mileage input. Please enter a numeric value.",
             file=sys.stderr,
         )
-        exit(1)
+        exit(EXIT_FAILURE)
     except Exception as e:
         print(f"An unexpected error occurred: {e}", file=sys.stderr)
-        exit(1)
+        exit(EXIT_FAILURE)

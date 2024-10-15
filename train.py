@@ -26,7 +26,7 @@ def standard_deviation(values, mean):
     return math.sqrt(variance(values, mean))
 
 
-def train(data, l_rate, epochs, error_func, threshold):
+def train(data, l_rate, epochs, error_func, debug):
     theta1 = theta0 = 0
 
     mileages = data["km"]
@@ -58,21 +58,23 @@ def train(data, l_rate, epochs, error_func, threshold):
         theta1 -= tmp1
         theta0 -= tmp0
 
-        C = theta1 * (prices_std / mileages_std)
-        error = mean(
-            [
-                error_func(
-                    estimate_price(
-                        C,
-                        prices_mean - C * mileages_mean,
-                        km,
-                    )
-                    - price
+        if debug:
+            C = theta1 * (prices_std / mileages_std)
+            print(
+                mean(
+                    [
+                        error_func(
+                            estimate_price(
+                                C,
+                                prices_mean - C * mileages_mean,
+                                km,
+                            )
+                            - price
+                        )
+                        for price, km in zip(data["price"], data["km"])
+                    ]
                 )
-                for price, km in zip(data["price"], data["km"])
-            ]
-        )
-        # TODO use treshold
+            )
 
     theta1 = theta1 * (prices_std / mileages_std)
     theta0 = prices_mean - theta1 * mileages_mean
@@ -82,7 +84,9 @@ def train(data, l_rate, epochs, error_func, threshold):
             for price, km in zip(data["price"], data["km"])
         ]
     )
-    print(error)  # TODO clean formatting
+    print(
+        f"Error: {error} with error function {args.error_function} after {epochs} epochs."
+    )
     return theta1, theta0
 
 
