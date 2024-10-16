@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from predict import estimate_price
 
+EXIT_FAILURE = 1
 ERROR_FUNCTIONS = {"MAE": abs, "MSE": lambda x: x * x}
 
 
@@ -90,9 +91,6 @@ def train(data, l_rate, epochs, error_func, debug):
     return theta1, theta0
 
 
-# TODO better/cleaner plot
-
-
 def plot_result(data, theta1, theta0):
     y_line = [(theta1 * x + theta0) for x in data["km"]]
     plt.figure("Linear regression results", figsize=(10, 5))
@@ -107,79 +105,92 @@ def plot_result(data, theta1, theta0):
 
 
 if __name__ == "__main__":
-    # TODO better description
     parser = ArgumentParser(
         prog="ft_linear_regression",
-        description="Train the model on given datas.",
+        description="Train a linear regression model using the provided dataset and parameters.",
     )
 
     parser.add_argument(
         "--input-file",
         type=str,
-        help="Path of the input csv file with training data.",
+        help="Path to the input CSV file containing training data. Defaults to 'data/data/data.csv'.",
         default="data/data.csv",
     )
 
     parser.add_argument(
         "--output-file",
         type=str,
-        help="Path of the output json file with trained thetas.",
+        help="Path to the output JSON file where the trained parameters (thetas) will be saved. Defaults to 'thetas.json'.",
         default="thetas.json",
     )
 
     parser.add_argument(
         "--learning-rate",
         type=float,
-        help="Learning rate to use for training.",
+        help="Learning rate for model training. A smaller value indicates slower learning. Defaults to 0.001.",
         default=0.001,
     )
 
     parser.add_argument(
         "--epochs",
         type=int,
-        help="Number of training iterations.",
+        help="Total number of training iterations (epochs). A higher number can lead to better fitting. Defaults to 5000.",
         default=5_000,
     )
 
     parser.add_argument(
         "--plot",
         action="store_true",
-        help="Plot the function and data after training.",
+        help="Flag to enable plotting of the training data and regression line after training.",
     )
 
     parser.add_argument(
         "--error-function",
         type=str,
-        help="Choose the error function. Defaults to MAE (average of the absolute differences between predicted values and actual values).",
+        help="Select the error function to minimize during training. Options include: "
+        + ", ".join(ERROR_FUNCTIONS)
+        + ". Defaults to 'MAE'.",
         choices=list(ERROR_FUNCTIONS),
         default="MAE",
     )
 
     parser.add_argument(
-        "--threshold",
-        type=float,
-        help="Choose the threshold percentage. Exemple: 0.1 will equal 10%",
+        "--debug",
+        action="store_true",
+        help="Enable debug mode to print detailed error messages during training.",
     )
 
     args = parser.parse_args()
 
-    # TODO clean except
-
     try:
         data = pd.read_csv(args.input_file)
-        assert "km" in data and "price" in data, "Invalid input data."
+        assert (
+            "km" in data and "price" in data
+        ), "Invalid input data: Ensure 'km' and 'price' columns are present."
+
         error_func = ERROR_FUNCTIONS[args.error_function]
+
         theta1, theta0 = train(
-            data, args.learning_rate, args.epochs, error_func, args.threshold
+            data, args.learning_rate, args.epochs, error_func, args.debug
         )
+
         if args.plot:
             plot_result(data, theta1, theta0)
-        with open(args.output_file, "w") as thetas:
+
+        with open(args.output_file, "w") as thetas_file:
             json.dump(
                 {"theta1": theta1, "theta0": theta0},
-                thetas,
+                thetas_file,
                 indent=4,
             )
+    except FileNotFoundError:
+        print(
+            f"Error: The input file '{args.input_file}' was not found.", file=sys.stderr
+        )
+        exit(EXIT_FAILURE)
+    except AssertionError as ae:
+        print(ae, file=sys.stderr)
+        exit(EXIT_FAILURE)
     except Exception as e:
-        print(e, file=sys.stderr)
-        exit(1)
+        print(f"An unexpected error occurred: {e}", file=sys.stderr)
+        exit(EXIT_FAILURE)
