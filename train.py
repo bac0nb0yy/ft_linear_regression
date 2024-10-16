@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from predict import estimate_price
+from random import randint
 
 EXIT_FAILURE = 1
 ERROR_FUNCTIONS = {"MAE": abs, "MSE": lambda x: x * x}
@@ -27,18 +28,18 @@ def standard_deviation(values, mean):
     return math.sqrt(variance(values, mean))
 
 
-def train(data, l_rate, epochs, error_func, debug):
+def train(data, l_rate, epochs, error_func, verbose):
     theta1 = theta0 = 0
 
-    mileages = data["km"]
-    prices = data["price"]
+    mileages_denormalize = data["km"].tolist()
+    prices_denormalize = data["price"].tolist()
 
-    prices_mean = mean(prices)
-    mileages_mean = mean(mileages)
-    prices_std = standard_deviation(prices, prices_mean)
-    mileages_std = standard_deviation(mileages, mileages_mean)
-    prices = [normalize(p, prices_mean, prices_std) for p in prices]
-    mileages = [normalize(m, mileages_mean, mileages_std) for m in mileages]
+    prices_mean = mean(prices_denormalize)
+    mileages_mean = mean(mileages_denormalize)
+    prices_std = standard_deviation(prices_denormalize, prices_mean)
+    mileages_std = standard_deviation(mileages_denormalize, mileages_mean)
+    prices = [normalize(p, prices_mean, prices_std) for p in prices_denormalize]
+    mileages = [normalize(m, mileages_mean, mileages_std) for m in mileages_denormalize]
     m = len(data)
 
     for _ in tqdm(range(epochs)):
@@ -59,7 +60,7 @@ def train(data, l_rate, epochs, error_func, debug):
         theta1 -= tmp1
         theta0 -= tmp0
 
-        if debug:
+        if verbose:
             C = theta1 * (prices_std / mileages_std)
             print(
                 mean(
@@ -86,21 +87,53 @@ def train(data, l_rate, epochs, error_func, debug):
         ]
     )
     print(
-        f"Error: {error} with error function {args.error_function} after {epochs} epochs."
+        f"Error: Average {round(error)} off real prices, with error function {args.error_function} after {epochs} epochs."
     )
     return theta1, theta0
 
 
 def plot_result(data, theta1, theta0):
     y_line = [(theta1 * x + theta0) for x in data["km"]]
-    plt.figure("Linear regression results", figsize=(10, 5))
-    plt.scatter(data["km"], data["price"], color="blue", alpha=0.7)
-    plt.plot(data["km"], y_line, color="red", label=f"y = {theta1}x + {theta0}")
-    plt.xlabel("Kilometers Driven (km)")
-    plt.ylabel("Price")
-    plt.axhline(0, color="black", lw=0.5, ls="--")
-    plt.axvline(0, color="black", lw=0.5, ls="--")
-    plt.grid()
+
+    plt.figure("Linear Regression Results", figsize=(12, 6))
+
+    plt.scatter(
+        data["km"],
+        data["price"],
+        color="blue",
+        alpha=0.6,
+        edgecolor="k",
+        s=50,
+        label="Actual Prices",
+    )
+
+    plt.plot(
+        data["km"],
+        y_line,
+        color="red",
+        linewidth=2,
+        label=f"Regression Line: y = {theta1:.2f}x + {theta0:.2f}",
+    )
+
+    plt.title("Price Prediction based on Kilometers Driven", fontsize=16)
+    plt.xlabel("Kilometers Driven (km)", fontsize=14)
+    plt.ylabel("Price", fontsize=14)
+
+    plt.grid(True)
+    plt.legend()
+    plt.xlim(0, max(data["km"]) * 1.05)
+    plt.ylim(0, max(data["price"]) * 1.05)
+
+    if len(data["km"]) > 0:
+        mid_x = data["km"].iloc[randint(0, len(data["km"]) - 1)]
+        mid_y = estimate_price(theta1, theta0, mid_x)
+        plt.annotate(
+            f"({mid_x}, {mid_y:.2f})",
+            xy=(mid_x, mid_y),
+            xytext=(mid_x, mid_y + 1000),
+            arrowprops=dict(facecolor="black", arrowstyle="->"),
+        )
+
     plt.show()
 
 
@@ -155,9 +188,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--debug",
+        "--verbose",
         action="store_true",
-        help="Enable debug mode to print detailed error messages during training.",
+        help="Enable verbose mode to print detailed error messages during training.",
     )
 
     args = parser.parse_args()
@@ -171,7 +204,7 @@ if __name__ == "__main__":
         error_func = ERROR_FUNCTIONS[args.error_function]
 
         theta1, theta0 = train(
-            data, args.learning_rate, args.epochs, error_func, args.debug
+            data, args.learning_rate, args.epochs, error_func, args.verbose
         )
 
         if args.plot:
