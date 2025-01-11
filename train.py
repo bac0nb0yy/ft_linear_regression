@@ -1,13 +1,15 @@
-import sys
-import json
-import math
-import signal
-from tqdm import tqdm
-import pandas as pd
-import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from predict import estimate_price
 from random import randint
+from tqdm import tqdm
+from utils import validate_csv_structure, CSVValidationError
+import json
+import math
+import matplotlib.pyplot as plt
+import pandas as pd
+import sys
+import signal
+
 
 ERROR_FUNCTIONS = {"MAE": abs, "MSE": lambda x: x * x}
 
@@ -42,7 +44,7 @@ def train(data, l_rate, epochs, error_func, verbose):
     mileages = [normalize(m, mileages_mean, mileages_std) for m in mileages_denormalize]
     m = len(data)
 
-    for _ in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs)):
         tmp0 = l_rate * (
             sum(estimate_price(theta1, theta0, mileages[i]) - prices[i] for i in range(m)) / m
         )
@@ -58,32 +60,33 @@ def train(data, l_rate, epochs, error_func, verbose):
 
         if verbose:
             C = theta1 * (prices_std / mileages_std)
-            print(
-                mean(
-                    [
-                        error_func(
-                            estimate_price(
-                                C,
-                                prices_mean - C * mileages_mean,
-                                km,
-                            )
-                            - price
+            error = mean(
+                [
+                    ERROR_FUNCTIONS[error_func](
+                        estimate_price(
+                            C,
+                            prices_mean - C * mileages_mean,
+                            km,
                         )
-                        for price, km in zip(data["price"], data["km"])
-                    ]
-                )
+                        - price
+                    )
+                    for price, km in zip(data["price"], data["km"])
+                ]
+            )
+            print(
+                f"Average {error:.2f} off real prices, with error function {error_func} after {epoch} epoch(s)."
             )
 
     theta1 = theta1 * (prices_std / mileages_std)
     theta0 = prices_mean - theta1 * mileages_mean
     error = mean(
         [
-            error_func(estimate_price(theta1, theta0, km) - price)
+            ERROR_FUNCTIONS[error_func](estimate_price(theta1, theta0, km) - price)
             for price, km in zip(data["price"], data["km"])
         ]
     )
     print(
-        f"Error: Average {round(error)} off real prices, with error function {args.error_function} after {epochs} epochs."
+        f"Average {error:.2f} off real prices, with error function {error_func} after {epochs} epochs."
     )
     return theta1, theta0
 
@@ -120,15 +123,14 @@ def plot_result(data, theta1, theta0):
     plt.xlim(0, max(data["km"]) * 1.05)
     plt.ylim(0, max(data["price"]) * 1.05)
 
-    if len(data["km"]) > 0:
-        mid_x = data["km"].iloc[randint(0, len(data["km"]) - 1)]
-        mid_y = estimate_price(theta1, theta0, mid_x)
-        plt.annotate(
-            f"({mid_x}, {mid_y:.2f})",
-            xy=(mid_x, mid_y),
-            xytext=(mid_x, mid_y + 1000),
-            arrowprops=dict(facecolor="black", arrowstyle="->"),
-        )
+    mid_x = data["km"].iloc[randint(0, len(data["km"]) - 1)]
+    mid_y = estimate_price(theta1, theta0, mid_x)
+    plt.annotate(
+        f"({mid_x}, {mid_y:.2f})",
+        xy=(mid_x, mid_y),
+        xytext=(mid_x, mid_y + 1000),
+        arrowprops=dict(facecolor="black", arrowstyle="->"),
+    )
 
     plt.show()
 
@@ -201,14 +203,13 @@ def main():
             lambda *_: (print("\033[2Ddslr: CTRL+C sent by user."), exit(1)),
         )
 
-        data = pd.read_csv(args.input_file)
-        assert "km" in data and "price" in data, (
-            "Invalid input data: Ensure 'km' and 'price' columns are present."
+        data = pd.read_csv(args.input_file).dropna()
+
+        validate_csv_structure(data)
+
+        theta1, theta0 = train(
+            data, args.learning_rate, args.epochs, args.error_function, args.verbose
         )
-
-        error_func = ERROR_FUNCTIONS[args.error_function]
-
-        theta1, theta0 = train(data, args.learning_rate, args.epochs, error_func, args.verbose)
 
         if args.plot:
             plot_result(data, theta1, theta0)
@@ -219,10 +220,11 @@ def main():
                 thetas_file,
                 indent=4,
             )
+
     except FileNotFoundError:
         print(f"Error: The input file '{args.input_file}' was not found.", file=sys.stderr)
-    except AssertionError as ae:
-        print(ae, file=sys.stderr)
+    except CSVValidationError as ex:
+        print(f"{ex.__class__.__name__}: {ex}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}", file=sys.stderr)
 

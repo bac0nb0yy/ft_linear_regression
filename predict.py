@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import json
+import os.path
 import signal
 import sys
 
@@ -39,16 +40,17 @@ def main():
             lambda *_: (print("\033[2Ddslr: CTRL+C sent by user."), exit(1)),
         )
 
-        with open(args.file, "r") as thetas:
-            data = json.load(thetas)
-            theta1, theta0 = data["theta1"], data["theta0"]
+        if os.path.isfile(args.file):
+            with open(args.file, "r") as thetas:
+                data = json.load(thetas)
+                theta1, theta0 = data["theta1"], data["theta0"]
+        else:
+            theta1 = theta0 = 0
 
         mileage = args.mileage if args.mileage is not None else float(input("Enter your mileage: "))
 
         print(estimate_price(theta1, theta0, mileage))
 
-    except FileNotFoundError:
-        print(f"Error: The file '{args.file}' was not found.", file=sys.stderr)
     except json.JSONDecodeError:
         print(f"Error: The file '{args.file}' contains invalid JSON.", file=sys.stderr)
     except KeyError as e:
