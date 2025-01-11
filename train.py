@@ -1,6 +1,7 @@
 import sys
 import json
 import math
+import signal
 from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,7 +9,6 @@ from argparse import ArgumentParser
 from predict import estimate_price
 from random import randint
 
-EXIT_FAILURE = 1
 ERROR_FUNCTIONS = {"MAE": abs, "MSE": lambda x: x * x}
 
 
@@ -44,11 +44,7 @@ def train(data, l_rate, epochs, error_func, verbose):
 
     for _ in tqdm(range(epochs)):
         tmp0 = l_rate * (
-            sum(
-                estimate_price(theta1, theta0, mileages[i]) - prices[i]
-                for i in range(m)
-            )
-            / m
+            sum(estimate_price(theta1, theta0, mileages[i]) - prices[i] for i in range(m)) / m
         )
         tmp1 = l_rate * (
             sum(
@@ -137,7 +133,7 @@ def plot_result(data, theta1, theta0):
     plt.show()
 
 
-if __name__ == "__main__":
+def parse_args():
     parser = ArgumentParser(
         prog="ft_linear_regression",
         description="Train a linear regression model using the provided dataset and parameters.",
@@ -193,19 +189,26 @@ if __name__ == "__main__":
         help="Enable verbose mode to print detailed error messages during training.",
     )
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
 
     try:
+        signal.signal(
+            signal.SIGINT,
+            lambda *_: (print("\033[2Ddslr: CTRL+C sent by user."), exit(1)),
+        )
+
         data = pd.read_csv(args.input_file)
-        assert (
-            "km" in data and "price" in data
-        ), "Invalid input data: Ensure 'km' and 'price' columns are present."
+        assert "km" in data and "price" in data, (
+            "Invalid input data: Ensure 'km' and 'price' columns are present."
+        )
 
         error_func = ERROR_FUNCTIONS[args.error_function]
 
-        theta1, theta0 = train(
-            data, args.learning_rate, args.epochs, error_func, args.verbose
-        )
+        theta1, theta0 = train(data, args.learning_rate, args.epochs, error_func, args.verbose)
 
         if args.plot:
             plot_result(data, theta1, theta0)
@@ -217,13 +220,12 @@ if __name__ == "__main__":
                 indent=4,
             )
     except FileNotFoundError:
-        print(
-            f"Error: The input file '{args.input_file}' was not found.", file=sys.stderr
-        )
-        exit(EXIT_FAILURE)
+        print(f"Error: The input file '{args.input_file}' was not found.", file=sys.stderr)
     except AssertionError as ae:
         print(ae, file=sys.stderr)
-        exit(EXIT_FAILURE)
     except Exception as e:
         print(f"An unexpected error occurred: {e}", file=sys.stderr)
-        exit(EXIT_FAILURE)
+
+
+if __name__ == "__main__":
+    main()
