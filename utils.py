@@ -17,7 +17,9 @@ def validate_csv_structure(df):
     expected_cols = ["km", "price"]
 
     if list(df.columns) != expected_cols:
-        raise ColumnMismatchError("Column names do not match the expected structure.")
+        raise ColumnMismatchError(
+            "Column names do not match the expected structure."
+        )
 
     for col in expected_cols:
         if not pd.api.types.is_numeric_dtype(df[col]):

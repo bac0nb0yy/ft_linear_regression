@@ -1,15 +1,16 @@
-from argparse import ArgumentParser
-from predict import estimate_price
-from random import randint
-from tqdm import tqdm
-from utils import validate_csv_structure, CSVValidationError
 import json
 import math
+import signal
+import sys
+from argparse import ArgumentParser
+from random import randint
+
 import matplotlib.pyplot as plt
 import pandas as pd
-import sys
-import signal
+from tqdm import tqdm
 
+from predict import estimate_price
+from utils import CSVValidationError, validate_csv_structure
 
 ERROR_FUNCTIONS = {"MAE": abs, "MSE": lambda x: x * x}
 
@@ -40,17 +41,26 @@ def train(data, l_rate, epochs, error_func, verbose):
     mileages_mean = mean(mileages_denormalize)
     prices_std = standard_deviation(prices_denormalize, prices_mean)
     mileages_std = standard_deviation(mileages_denormalize, mileages_mean)
-    prices = [normalize(p, prices_mean, prices_std) for p in prices_denormalize]
-    mileages = [normalize(m, mileages_mean, mileages_std) for m in mileages_denormalize]
+    prices = [
+        normalize(p, prices_mean, prices_std) for p in prices_denormalize
+    ]
+    mileages = [
+        normalize(m, mileages_mean, mileages_std) for m in mileages_denormalize
+    ]
     m = len(data)
 
     for epoch in tqdm(range(epochs)):
         tmp0 = l_rate * (
-            sum(estimate_price(theta1, theta0, mileages[i]) - prices[i] for i in range(m)) / m
+            sum(
+                estimate_price(theta1, theta0, mileages[i]) - prices[i]
+                for i in range(m)
+            )
+            / m
         )
         tmp1 = l_rate * (
             sum(
-                (estimate_price(theta1, theta0, mileages[i]) - prices[i]) * mileages[i]
+                (estimate_price(theta1, theta0, mileages[i]) - prices[i])
+                * mileages[i]
                 for i in range(m)
             )
             / m
@@ -78,10 +88,12 @@ def train(data, l_rate, epochs, error_func, verbose):
             )
 
     theta1 = theta1 * (prices_std / mileages_std)
-    theta0 = prices_mean - theta1 * mileages_mean
+    theta0 = (theta0 * prices_std) - (theta1 * mileages_mean) + prices_mean
     error = mean(
         [
-            ERROR_FUNCTIONS[error_func](estimate_price(theta1, theta0, km) - price)
+            ERROR_FUNCTIONS[error_func](
+                estimate_price(theta1, theta0, km) - price
+            )
             for price, km in zip(data["price"], data["km"])
         ]
     )
@@ -208,7 +220,11 @@ def main():
         validate_csv_structure(data)
 
         theta1, theta0 = train(
-            data, args.learning_rate, args.epochs, args.error_function, args.verbose
+            data,
+            args.learning_rate,
+            args.epochs,
+            args.error_function,
+            args.verbose,
         )
 
         if args.plot:
@@ -222,7 +238,10 @@ def main():
             )
 
     except FileNotFoundError:
-        print(f"Error: The input file '{args.input_file}' was not found.", file=sys.stderr)
+        print(
+            f"Error: The input file '{args.input_file}' was not found.",
+            file=sys.stderr,
+        )
     except CSVValidationError as ex:
         print(f"{ex.__class__.__name__}: {ex}")
     except Exception as e:
@@ -230,4 +249,6 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
+    main()
     main()

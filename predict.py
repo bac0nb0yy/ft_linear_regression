@@ -1,8 +1,8 @@
-from argparse import ArgumentParser
 import json
 import os.path
 import signal
 import sys
+from argparse import ArgumentParser
 
 
 def estimate_price(theta1, theta0, mileage):
@@ -47,14 +47,23 @@ def main():
         else:
             theta1 = theta0 = 0
 
-        mileage = args.mileage if args.mileage is not None else float(input("Enter your mileage: "))
+        mileage = (
+            args.mileage
+            if args.mileage is not None
+            else float(input("Enter your mileage: "))
+        )
 
         print(estimate_price(theta1, theta0, mileage))
 
     except json.JSONDecodeError:
-        print(f"Error: The file '{args.file}' contains invalid JSON.", file=sys.stderr)
+        print(
+            f"Error: The file '{args.file}' contains invalid JSON.",
+            file=sys.stderr,
+        )
     except KeyError as e:
-        print(f"Error: Missing expected key in JSON data: {e}", file=sys.stderr)
+        print(
+            f"Error: Missing expected key in JSON data: {e}", file=sys.stderr
+        )
     except ValueError:
         print(
             "Error: Invalid mileage input. Please enter a numeric value.",
